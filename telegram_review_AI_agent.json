@@ -1,0 +1,148 @@
+{
+  "name": "기말프로젝트_2",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "b6ae2c2b-0d33-4b63-bed1-828a2f9cdd33",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -60,
+        260
+      ],
+      "webhookId": "={{ $env.WEBHOOK_ID }}",
+      "credentials": {
+        "telegramApi": {
+          "id": "={{ $env.TELEGRAM_API_ID }}",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.from.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "id": "f8986262-42d1-411d-beee-14e3a0f27e41",
+      "name": "Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        820,
+        260
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "={{ $env.TELEGRAM_API_ID }}",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=다음은 사용자가 입력한 정보입니다. 입력된 데이터를 바탕으로 페르소나를 생성하세요. 페르소나는 아래의 구조를 따라야 합니다:\n\n1. 기본 정보:\n   - 이름: [입력 데이터를 기반으로 도출]\n   - 연령: [입력 데이터를 기반으로 도출]\n   - 소속: [입력 데이터를 기반으로 도출]\n   - 성격: [입력 데이터를 기반으로 도출]\n   \n2. 취향과 선호도:\n   - 커피: [입력 데이터를 기반으로 구체적인 선호를 작성]\n   - 디저트: [입력 데이터를 기반으로 작성]\n   - 음료: [입력 데이터를 기반으로 작성]\n\n3. 활동과 취미:\n   - [입력 데이터에서 파생 가능한 활동과 취미 추가]\n\n4. 구매 성향:\n   - [합리적 소비, 경험 중시와 같은 특성을 추가]\n\n**입력 데이터:** {{$json.message.text}}\n\n만약에 없으면 없다고 해도돼 그냥 오키?"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "32356b82-c4ae-4285-8d7f-57abb6a72b18",
+      "name": "OpenAI1",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.6,
+      "position": [
+        140,
+        260
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "={{ $env.OPENAI_API_KEY }}",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "assistant",
+        "assistantId": {
+          "__rl": true,
+          "value": "asst_FX2WOVvc8Ikrry93uBbfqXnx",
+          "mode": "list",
+          "cachedResultName": "review"
+        },
+        "prompt": "define",
+        "text": "={{$json.message.content}}",
+        "options": {}
+      },
+      "id": "a7f6123c-c772-4323-aec9-05781f56cccf",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.6,
+      "position": [
+        480,
+        260
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "={{ $env.OPENAI_API_KEY }}",
+          "name": "OpenAI account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "OpenAI1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI1": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
