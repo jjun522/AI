@@ -1,0 +1,348 @@
+{
+  "name": "기말 프로젝트",
+  "nodes": [
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "=1e0tV1GoYZT5EBfcatmMkdounhN4dJDxlq2xU5N4VXy0",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "review",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "store_id",
+              "lookupValue": "={{$json.store}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "95eb594d-0614-4cff-9ac7-83e31b2a2cce",
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        680,
+        560
+      ],
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Ik3W9nHUKcYoNCHT",
+          "name": "Google Sheets account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}\n",
+        "options": {}
+      },
+      "id": "10133c18-046e-4d58-95e1-cc951ae998db",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2000,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $json.message.content;\n\ntry {\n  // 백틱과 불필요한 공백 제거\n  const cleanedContent = content.replace(/```json|```/g, '').trim();\n  \n  // JSON 파싱\n  const parsedContent = JSON.parse(cleanedContent);\n  \n  return {\n    json: parsedContent,\n  };\n} catch (error) {\n  return {\n    json: {\n      error: \"Invalid JSON in message.content\",\n      originalContent: content,\n    },\n  };\n}\n"
+      },
+      "id": "a8533d7b-9460-423d-af31-60a632da7418",
+      "name": "Code1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Webhook에서 전달된 store 값 가져오기\nconst store = $json.body.store;\n\n\nif (!store) {\n  return {\n    json: {\n      message: \"Store 값이 전달되지 않았습니다.\",\n      data: null,\n    },\n  };\n}\n\n// Webhook 데이터를 그대로 전달\nreturn {\n  json: { store },\n};\n"
+      },
+      "id": "752e2b29-ad5c-4a5f-9137-7857aecf6d86",
+      "name": "Code2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const reviews = $json.reviews;\n\n// 긍정 리뷰와 부정 리뷰 분리\nconst positiveReviews = reviews.filter(review => review.RATING >= 4).map(review => review.CONTENT).join(' ');\nconst negativeReviews = reviews.filter(review => review.RATING <= 3).map(review => review.CONTENT).join(' ');\n\n// 불용어 설정\nconst stopwords = [\"정말\", \"너무\", \"잘\", \"이\", \"다\", \"을\", \"는\", \"있어요\", \"해서\", \"하는\", \"그리고\", \"또\", \"진짜\", \"자주\", \"아주\", \"으로\", \"하고\", \"입니다\", \"다\"];\n\n// 단어 추출 및 빈도 계산 함수\nfunction getWordCounts(text) {\n  const words = text\n    .split(/\\s+/)\n    .map(word => word.replace(/[^\\w가-힣]/g, '').trim())\n    .filter(word => word && !stopwords.includes(word) && word.length > 1);\n\n  return words.reduce((counts, word) => {\n    counts[word] = (counts[word] || 0) + 1;\n    return counts;\n  }, {});\n}\n\n// 긍정 및 부정 단어 빈도 계산\nconst positiveWordCounts = getWordCounts(positiveReviews);\nconst negativeWordCounts = getWordCounts(negativeReviews);\n\nreturn {\n  json: {\n    positiveWordCounts,\n    negativeWordCounts\n  }\n};\n"
+      },
+      "id": "1c57d44e-788e-43f1-9bdc-3d42dc6aefb1",
+      "name": "Code3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Webhook에서 전달된 store 값 가져오기\nconst store = $input.first().json.store_id;\n\nif (!store) {\n  throw new Error(\"Store 값이 전달되지 않았습니다.\");\n}\n\n// Google Sheets에서 가져온 데이터\nconst rows = $input.all(); // 모든 데이터 가져오기\n\n// store 값으로 데이터 필터링\nconst filteredRows = rows.filter(row => row.json.store_id == store);\n\n// 필터링된 데이터 반환\nreturn {\n  json: {\n    store: store,\n    reviews: filteredRows.map(row => ({\n      RATING: row.json.RATING,\n      CONTENT: row.json.CONTENT || \"리뷰 없음\",\n      MENU: row.json.MENU\n    }))\n  }\n};\n"
+      },
+      "id": "bbb6f9ab-6b71-4269-905d-7e1cab29ff05",
+      "name": "Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://quickchart.io/wordcloud",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "={\n  \"Content-Type\": \"application/json\"\n}\n",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"format\": \"png\",\n  \"width\": 300,\n  \"height\": 300,\n  \"fontScale\": 15,\n  \"scale\": \"linear\",\n  \"maxNumWords\":60,\n  \"text\": \"{{ $json.positiveText }}\" \n}\n",
+        "options": {}
+      },
+      "id": "9aedcdac-8adc-48b0-9daf-4f9f75f14035",
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const positiveWordCounts = $json.positiveWordCounts;\nconst negativeWordCounts = $json.negativeWordCounts;\n\n// 빈도가 2 이상인 단어만 필터링하는 함수\nfunction filterLowFrequencyWords(wordCounts, threshold) {\n    return Object.fromEntries(\n        Object.entries(wordCounts).filter(([word, count]) => count >= threshold)\n    );\n}\n\n// 객체를 텍스트 형식으로 변환하는 함수\nfunction wordCountsToText(wordCounts) {\n    return Object.entries(wordCounts)\n        .map(([word, count]) => `${word}:${count}`)\n        .join(' ');\n}\n\n// 빈도가 2 이상인 단어만 필터링\nconst filteredPositiveWords = filterLowFrequencyWords(positiveWordCounts, 2);\nconst filteredNegativeWords = filterLowFrequencyWords(negativeWordCounts, 2);\n\n// 긍정 및 부정 워드클라우드 텍스트 생성\nconst positiveText = wordCountsToText(filteredPositiveWords);\nconst negativeText = wordCountsToText(filteredNegativeWords);\n\nreturn {\n    json: {\n        positiveText,\n        negativeText\n    }\n};\n"
+      },
+      "id": "7133c755-09c0-4103-874b-c13c9a9ef7a8",
+      "name": "Code4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1220,
+        840
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://quickchart.io/wordcloud",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n    \"Content-Type\": \"application/json\"\n}\n",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"format\": \"png\",\n  \"width\": 300,\n  \"height\": 300,\n  \"fontScale\": 15,\n  \"scale\": \"linear\",\n  \"maxNumWords\":60,\n  \"text\": \"{{ $json.negativeText }}\" \n}\n",
+        "options": {}
+      },
+      "id": "87647bc5-40fd-4ee3-929d-f286dba55c0e",
+      "name": "HTTP Request1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "7300724d-b2c1-4336-87f1-6158efd9fe0d",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "218550da-e4a6-4c99-a46e-05dade893946",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        260,
+        560
+      ],
+      "webhookId": "7300724d-b2c1-4336-87f1-6158efd9fe0d"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=다음은 한 매장의 리뷰 데이터입니다. 리뷰 데이터에는 메뉴와 리뷰 내용이 포함되어 있습니다. 주어진 데이터를 분석하여 아래 요청사항에 따라 결과를 도출해주세요.\n\n리뷰 데이터:\n{{ $json.reviews.map(review => `\nRATING: ${review.RATING}\nCONTENT: ${review.CONTENT || \"리뷰 없음\"}\nMENU: ${review.MENU || \"메뉴 정보 없음\"}\n`).join('') }}\n\n요청 사항:\n1. 메뉴(MENU) 데이터를 분석하여 가장 많이 언급된 메뉴 1위와 2위를 도출해 주세요.\n2. 모든 리뷰(CONTENT)를 분석하여 리뷰를 하나의 문장으로 요약해 주세요.\n3. 리뷰 데이터를 기반으로 매장의 장점과 단점을 각각 도출해 주세요.\n\n출력 형식:\n{\n  \"top_menus\": {\n    \"first\": \"1등 메뉴 이름\",\n    \"second\": \"2등 메뉴 이름\"\n  },\n  \"overall_summary\": \"전체 리뷰를 요약한 내용\",\n  \"strengths\": [\"장점1\", \"장점2\", \"장점3\"],\n  \"weaknesses\": [\"단점1\", \"단점2\", \"단점3\"]\n}\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6a7ec130-ae88-4856-963c-1cfcb6d1d2d4",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.6,
+      "position": [
+        1040,
+        560
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "PdxQkYuwDHFRXMhO",
+          "name": "OpenAi account 129"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "Code4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code4": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6cef2264-9fed-426e-8713-17a916bff651",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8e708fc951c2c8d9bfd870642612e5b14ec5c85d63abd0f2b7607d0735d47d2f"
+  },
+  "id": "1GTAcUB35p0V9gIp",
+  "tags": []
+}
